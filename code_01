@@ -1,19 +1,48 @@
 # packages ----------------------------------------------------------------
-
+library(tidyverse)
 library(foreign)
 library(rdrobust)
 library(rddensity)
 library(rddtools)
 library(stargazer)
+library(modelsummary)
 
 
 # reading in data ---------------------------------------------------------
 setwd("/Users/gustavpirich/Library/Mobile Documents/com~apple~CloudDocs/Wirtschaftsuniversitaet/SSE/environmental_economics/lareg_assignment/code")
 
-source(code_01_preparation.R)
+#source(code_01_preparation.R)
 
 setwd("/Users/gustavpirich/Library/Mobile Documents/com~apple~CloudDocs/Wirtschaftsuniversitaet/SSE/environmental_economics/lareg_assignment/data")
 data <- read.csv("transformed_data.csv")
+
+
+
+# For summarising rdrobust models: https://stackoverflow.com/que --------
+
+tidy.rdrobust <- function(model, ...) {
+  ret <- data.frame(
+    term = row.names(model$coef),
+    estimate = model$coef[, 1],
+    std.error = model$se[, 1],
+    p.value = model$pv[, 1]
+  )
+  row.names(ret) <- NULL
+  ret
+}
+
+# # For summarising rdrobust models: https://stackoverflow.com/que --------
+
+
+glance.rdrobust <- function(model, ...) {
+  ret <- data.frame(
+    Kernel = model$kernel,
+    Bandwidth = model$bwselect,
+    Polynomial = ifelse(model$p == 1, "Linear", ifelse(model$p == 2, "Quadratic", "OTHER")),
+    Observations = sum(model$N_h)
+  )
+  ret
+}
 
 
 
@@ -25,8 +54,6 @@ data <- read.csv("transformed_data.csv")
 sub_sample <- data %>%
   filter(estimated_gain > -400) 
 
-plot(density_simule_gain$x, density_simule_gain$y, col="blue", lwd=2, type = "l")
-lines(density_gain$x, density_gain$y, col="red", lwd=2)
 
 # Use ggplot2 to plot the kernel density estimate
 plot_01 <- ggplot() +
@@ -57,7 +84,7 @@ plot_01 <- ggplot() +
 
 # Question 3
 #First creating a variable called large_bias
-s_1 <- sub_sample %>%
+s_1 <- data %>%
   mutate(large_bias = ifelse((abs(estimated_gain - perceived_gain) > 110 ), 1, 0)) %>%
   filter(estimated_gain > -400)
 
@@ -95,7 +122,7 @@ Table_heterogenous_bias <- stargazer(mod_1, out = "latex",
 
 
 #Rproducing the graph in
-s_1 <- s_1 %>%
+s_1 <- data %>%
   mutate(win_dummy = ifelse(estimated_gain > 1, 1, 0))
 
 #plot(s_1$estimated_gain, s_1$win_dummy)
@@ -114,9 +141,32 @@ rdplot(y=s_2$believes_does_not_lose, x=s_2$estimated_gain, c=0, weights=s_2$weig
 
 
 
-
 ggsave("../figures_tables/rd_plot_within.png", width = 6, height = 6)
 
-plot(s_1$simule_gain, s_1$win_dummy)
 
+
+# question C --------------------------------------------------------------
+
+s_3 <- s_1 %>% 
+  filter(variante_taxe_info == "f")
+
+# Now implement as a RDD
+rdd1 <- rdrobust(y=s_3$believes_does_not_lose, x=s_3$estimated_gain, c=0, weights = s_3$weight)
+# c4 <- RD with manual bandwidth and uniform kernel
+rdd2 <- rdrobust(y=s_3$believes_does_not_lose, x=s_3$estimated_gain, c=0, weights = s_3$weight, h=50, kernel = "uniform")
+# uniform kernel 
+rdd3 <- rdrobust(y=s_3$believes_does_not_lose, x=s_3$estimated_gain, c=0, weights = s_3$weight, kernel="uniform")
+# local quadratic
+rdd4 <- rdrobust(y=s_3$believes_does_not_lose, x=s_3$estimated_gain, c=0, weights = s_3$weight, p = 2)
+
+
+tab42_v2_rows <- tibble::tribble(~term,                ~rdd1,    ~rdd2,    ~rdd3,    ~rdd4)
+                                 #"Covariates",         "",       "",       "",       "",
+                                 #"Drop misclassified", "",       "",       "",       ""
+attr(tab42_v2_rows, 'position') <- 13:14
+sink("../figures_tables/table42_v2.tex")
+
+modelsummary(list(rdd1,rdd2,rdd3,rdd4), output = "latex_tabular",
+             fmt = 3, statistic =c("({std.error})", "[{p.value}]"))
+             #add_rows = tab42_v2_rows)
 lm(win_dummy ~ simule_gain, data = s_1)
