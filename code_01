@@ -1,101 +1,37 @@
-setwd("/Users/gustavpirich/Library/Mobile Documents/com~apple~CloudDocs/Wirtschaftsuniversitaet/SSE/environmental_economics/lareg_assignment/yellow_vests_aej_ep/code")
+# packages ----------------------------------------------------------------
 
-source("packages_functions.R")
-# load("after_papier.RData") # This loads the .RData generated after executing preparation.R and papier.R, so that one can run any line of this file almost independently (sometimes variables like taxe_efficace.hat or non_perdant should be redefined using the nearest above line that defines it though)
-load("after_preparation.RData") # This loads the .RData generated after executing preparation.R: it contains the dataframe (s) but lacks the definition of some objects (such as variables_reg_self_interest)
-
-
-# Over-estimation of policy costs 
-# Objective net gains
-wtd.mean(objective_gains$transport, weights = objective_gains$weight) # mean +18
-wtd.mean(objective_gains$housing, weights = objective_gains$weight) # +6
-wtd.mean(objective_gains$all, weights = objective_gains$weight) # +24
-# Subjective net gains
-decrit(s$gain_fuel, weights = s$weight) # mean -61 
-decrit(s$gain_chauffage, weights = s$weight) # -43
-decrit(s$gain, weights = s$weight) # -89 
-decrit(as.numeric(s$gain) - s$simule_gain, weights = s$weight) # mean -126, median -116
-decrit(s$simule_gain > s$gain, weights = s$weight) # 89%
-decrit(s$simule_gain_inelastique - s$gain > 0, weights = s$weight) # 77%
-
-# Figure 3.1: CDF of subjective vs. objective gain (including in the inelastic case)
-mar_old <- par()$mar
-cex_old <- par()$cex
-par(mar = c(3.4, 3.4, 1.1, 0.1), cex=1.5)
-
-# (a) transport
-cdf_transport <- Ecdf(objective_gains$transport)
-cdf_transport_inelastic <- Ecdf(objective_gains_inelastic$transport)
-plot(Ecdf(s$gain_fuel), type="s", lwd=2, col="orange", main="", ylab="", xlab="") + grid()
-
-# Kernel Density for perceived gain (s$gain_fuel) for the transport plot
-density_perceived_transport <- density(s$gain_fuel, bw = 50)
-lines(density_perceived_transport$x, density_perceived_transport$y, col="red", lwd=2)
-lines(cdf_transport$x, cdf_transport$y, lwd=2, col="darkblue")
-lines(cdf_transport_inelastic$x, cdf_transport_inelastic$y, lwd=2, lty=2, col="darkblue")
-title(ylab=expression("Proportion "<=" x"), xlab="Gain (in €/year per c.u.)", line=2.3)
-abline(v = c(-190, -110, -70, -40, -15, 0, 10, 20, 30, 40), lty=3, col=rgb(1,165/255,0,1))
-axis(3, at=c(-190, -110, -70, -40, -15, 0, 10, 20, 30, 40), tck=0.0, lwd=0, lwd.ticks = 0, padj=1.5, col.axis="orange", cex.axis=0.9)
-
-# (b) housing
-cdf_housing <- Ecdf(objective_gains$housing)
-cdf_housing_inelastic <- Ecdf(objective_gains_inelastic$housing)
-plot(Ecdf(s$gain_chauffage), type="s", lwd=2, col="orange", xlim=c(-250, 70), main="", ylab="", xlab="") + grid()
-lines(cdf_housing$x, cdf_housing$y, lwd=2, col="darkblue")
-lines(cdf_housing_inelastic$x, cdf_housing_inelastic$y, lwd=2, lty=2, col="darkblue")
-title(ylab=expression("Proportion "<=" x"), xlab="Gain (in €/year per c.u.)", line=2.3)
-abline(v=c(-190, -110, -70, -40, -15, 0, 10, 20, 30, 40), lty=3, col="orange") # rgb(1,0,0,0.7)
-axis(3, at=c(-190, -110, -70, -40, -15, 0, 10, 20, 30, 40), tck=0.0, lwd=0, lwd.ticks = 0, padj=1.5, col.axis="orange", cex.axis=0.9)
-
-# (c) both combined 
-cdf_all <- Ecdf(objective_gains$all)
-cdf_all_inelastic <- Ecdf(objective_gains_inelastic$all)
-plot(Ecdf(s$gain), type="s", lwd=2, col="orange", xlim=c(-400, 150), main="", ylab="", xlab="") + grid()
-lines(cdf_all$x, cdf_all$y, lwd=2, col="darkblue")
-lines(cdf_all_inelastic$x, cdf_all_inelastic$y, lwd=2, lty=2, col="darkblue")
-title(ylab=expression("Proportion "<=" x"), xlab="Gain (in €/year per c.u.)", line=2.3)
-abline(v=c(-280, -190, -120, -70, -30, 0, 20, 40, 60, 80), lty=3, col="orange")
-axis(3, at=c(-280, -190, -120, -70, -30, 0, 20, 40, 60, 80), tck=0.0, lwd=0, lwd.ticks = 0, padj=1.5, col.axis="orange", cex.axis=0.9)
-# legend("topleft", col=c("orange", "darkblue", "darkblue"), cex = 0.85, lty = c(1,1,2), lwd=2, legend = c("Subjective", "Objective", "Objective inelastic"))
-# restore graphical parameters
-par(mar = mar_old, cex = cex_old)
-
-mean(abs(fit$predicted_gain - fit$gain) > 110) # 5%
-wtd.mean(abs(s$simule_gain - s$gain) > 110, weights = s$weight) # 55%
+library(foreign)
+library(rdrobust)
+library(rddensity)
+library(rddtools)
+library(stargazer)
 
 
-# Figure C.2
-mar_old <- par()$mar
-cex_old <- par()$cex
-par(mar = c(4.1, 4.1, 1.1, 0.1), cex=1.5)
-plot(Ecdf(s$simule_gain - s$gain), type="s", lwd=2, col="red", xlim=c(-100, 400), xlab=expression("Bias: objective minus subjective net gain (in €/year per C.U.)"), main="", ylab=expression("Proportion "<=" x")) + grid() #  \\widehat{\\gamma} - g
-lines(density(s$simule_gain - s$gain, bw=30)$x, density(s$simule_gain - s$gain, bw=30)$y/0.004, xlim=c(-100, 400), lwd=2, type='l', col="darkblue")
-par(mar = mar_old, cex = cex_old)
-decrit(s$simule_gain > s$gain) # 11%
-sum(((s$simule_gain - s$gain) > 200)*s$weight) / sum(s$weight) # 23%
+# reading in data ---------------------------------------------------------
+setwd("/Users/gustavpirich/Library/Mobile Documents/com~apple~CloudDocs/Wirtschaftsuniversitaet/SSE/environmental_economics/lareg_assignment/code")
+
+source(code_01_preparation.R)
+
+setwd("/Users/gustavpirich/Library/Mobile Documents/com~apple~CloudDocs/Wirtschaftsuniversitaet/SSE/environmental_economics/lareg_assignment/data")
+data <- read.csv("transformed_data.csv")
 
 
 
+# Question 2  -------------------------------------------------------------
 
 
 
-# Question 2
 #keeping only a subsample of the respondents with estimated_gain > -400
-sub_sample <- s %>%
-  filter(simule_gain > -400) 
+sub_sample <- data %>%
+  filter(estimated_gain > -400) 
 
 plot(density_simule_gain$x, density_simule_gain$y, col="blue", lwd=2, type = "l")
 lines(density_gain$x, density_gain$y, col="red", lwd=2)
 
-# Kernel Density for estimated gain for the transport plot
-density_simule_gain <- density(sub_sample$simule_gain, bw = 50)
-density_gain <- density(sub_sample$gain, bw = 50)
-
-
 # Use ggplot2 to plot the kernel density estimate
 plot_01 <- ggplot() +
-  geom_density(data=sub_sample, aes(x=simule_gain, fill="Estimated Gain"), bw=50, alpha=0) +
-  geom_density(data=sub_sample, aes(x=gain, fill="Perceived Gain"), bw=50, alpha=0) +
+  geom_density(data=sub_sample, aes(x=estimated_gain, fill="Estimated Gain"), bw=50, alpha=0) +
+  geom_density(data=sub_sample, aes(x=perceived_gain, fill="Perceived Gain"), bw=50, alpha=0) +
   scale_fill_manual(values=c("Estimated Gain"="darkblue", "Perceived Gain"="orange")) +
   labs(title="Kernel Density Plot",
        x="Gain (in €/year per c.u.)",
@@ -105,8 +41,8 @@ plot_01 <- ggplot() +
   xlim(-550, 325)
 
 plot_01 <- ggplot() +
-  geom_density(data=sub_sample, aes(x=simule_gain, color="Estimated Gain"), bw=50, size=1) +  # Size increased here
-  geom_density(data=sub_sample, aes(x=gain, color="Perceived Gain"), bw=50, size=1) +  # And here
+  geom_density(data=sub_sample, aes(x=estimated_gain, color="Estimated Gain"), bw=50, size=1) +  # Size increased here
+  geom_density(data=sub_sample, aes(x=perceived_gain, color="Perceived Gain"), bw=50, size=1) +  # And here
   scale_color_manual(values=c("Estimated Gain"="darkblue", "Perceived Gain"="orange")) +
   labs(title="Kernel Density Plot",
        x="Gain (in €/year per c.u.)",
@@ -116,20 +52,29 @@ plot_01 <- ggplot() +
   xlim(-550, 325)
 
 
-ggsave("plot_01.png")
+#ggsave("plot_01.png")
 
 
 # Question 3
 #First creating a variable called large_bias
-s_1 <- s %>%
-  mutate(large_bias = ifelse((abs(simule_gain - gain) > 110 ), 1, 0)) %>%
-  filter(simule_gain > -400)
+s_1 <- sub_sample %>%
+  mutate(large_bias = ifelse((abs(estimated_gain - perceived_gain) > 110 ), 1, 0)) %>%
+  filter(estimated_gain > -400)
 
-variables_demo_bias <- variables_demo 
-variables_demo_bias <- variables_demo_bias[!(variables_demo_bias %in% c("sexe", "age_50_64", "age_65_plus", "taille_agglo"))]
+#variables_demo_bias <- variables_demo 
+#variables_demo_bias <- variables_demo_bias[!(variables_demo_bias %in% c("sexe", "age_50_64", "age_65_plus", "taille_agglo"))]
 
-formula <- as.formula(paste("large_bias ~ tax_approval + (sexe=='Féminin') + as.factor(taille_agglo) + (Diplome>=5) + revenu + 
-                                     ecologiste + Gauche_droite + uc + Gilets_jaunes + ", paste(variables_demo_bias, collapse=' + ')))
+#formula <- as.formula(paste("large_bias ~ tax_approval + (sexe=='Féminin') + as.factor(taille_agglo) + (Diplome>=5) + revenu + 
+                                     #ecologiste + Gauche_droite + uc + Gilets_jaunes + ", paste(variables_demo_bias, collapse=' + ')))
+
+#formula <- as.formula(paste(large_bias ~ tax_approval + (sexe=='Féminin') + as.factor(taille_agglo) + (Diplome>=5) + revenu + 
+#                              ecologiste + Gauche_droite + uc + Gilets_jaunes + , paste(variables_demo_bias, collapse=' + ')))
+s_1$political_leaning <- as.factor(s_1$political_leaning)
+
+# Rename the levels
+levels(s_1$political_leaning) <- c("extreme_left", "left", "center", "right", "extreme_right", "indeterminate")
+
+formula <- as.formula(paste("large_bias ~  tax_approval_nsp + tax_approval_yes + yv_pnr + yv_understands + yv_supports + yv_is_part + environmentalist + respondent_income + household_income + sexe + region + town_size + as.factor(education) + as.factor(political_leaning)")) 
 
 mod_1 <- lm(formula, weights = s_1$weight, data = s_1)
 summary(mod_1)
@@ -140,8 +85,8 @@ Table_heterogenous_bias <- stargazer(mod_1, out = "latex",
                                      #                     "Yellow Vests: PNR","Yellow Vests: understands","Yellow Vests: supports", "Yellow Vests: is part",
                                      #                     "Ecologist", "Left-right: Left", "Left-right: Center", "Left-right: Right", "Left-right: Extreme-right", "Left-right: Indeterminate"),
                                      dep.var.labels = c("Large bias ($\\left|\\widehat{\\gamma}-g\\right| > 110$)"), dep.var.caption = "", header = FALSE,
-                                     keep = c("tax_approval", "Gilets_jaunes", "Gauche_droite", "ecologiste"),
-                                     order = c("tax_approval", "Gilets_jaunes", "ecologiste", "Gauche_droite"),
+                                     keep = c("tax_approval_nsp", "tax_approval_yes", "yv_pnr", "yv_understands", "yv_supports", "yv_is_part", "yv_is_part", "environmentalist", "political_leaning"),
+                                     #order = c("tax_approval", "Gilets_jaunes", "ecologiste", "Gauche_droite"),
                                      omit.table.layout = 'n', star.cutoffs = NA,
                                      #coef = list(NULL, logit_bias_margins[,1], NULL),
                                      #se = list(NULL, logit_bias_margins[,2], NULL),
@@ -149,11 +94,28 @@ Table_heterogenous_bias <- stargazer(mod_1, out = "latex",
                                      no.space=TRUE, intercept.bottom=FALSE, intercept.top=TRUE, omit.stat=c("adj.rsq", "f", "ser", "ll", "aic"), label="tab:bias")
 
 
-#Reporducing the graph in
+#Rproducing the graph in
 s_1 <- s_1 %>%
-  mutate(win_dummy = ifelse(simule_gain > 1, 1, 0))
+  mutate(win_dummy = ifelse(estimated_gain > 1, 1, 0))
 
-identical(as.character(s_1$win_dummy), s_1$simule_gagnant)
+#plot(s_1$estimated_gain, s_1$win_dummy)
+
+# Main outcome variable is "believes does not lose"
+s_1$believes_does_not_lose <- s_1$winner_feedback != "Perdant"
+
+#Plot dropping low-level outliers
+s_2 <- s_1 %>% 
+  filter(estimated_gain > -300) %>%
+  filter(variante_taxe_info == "f")
+
+rdplot(y=s_2$believes_does_not_lose, x=s_2$estimated_gain, c=0, weights=s_2$weight,
+       x.label = expression(paste("simule_gain (", hat(gamma), ")")),
+       y.label = "Probability believes does not lose", p=2)
+
+
+
+
+ggsave("../figures_tables/rd_plot_within.png", width = 6, height = 6)
 
 plot(s_1$simule_gain, s_1$win_dummy)
 
