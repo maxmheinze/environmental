@@ -9,10 +9,8 @@ library(modelsummary)
 
 
 # reading in data ---------------------------------------------------------
-#source(code_01_preparation.R)
 
 setwd("/Users/gustavpirich/Library/Mobile Documents/com~apple~CloudDocs/Wirtschaftsuniversitaet/SSE/environmental_economics/lareg_assignment/data")
-#data <- read.csv("transformed_data.csv")
 
 edited_final_yellow <- read.csv("~/Library/Mobile Documents/com~apple~CloudDocs/Wirtschaftsuniversitaet/SSE/environmental_economics/lareg_assignment/data/edited_final_yellow.csv", sep=";")
 edited_final_yellow <- edited_final_yellow %>%
