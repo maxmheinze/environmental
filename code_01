@@ -9,14 +9,14 @@ library(modelsummary)
 
 
 # reading in data ---------------------------------------------------------
-setwd("/Users/gustavpirich/Library/Mobile Documents/com~apple~CloudDocs/Wirtschaftsuniversitaet/SSE/environmental_economics/lareg_assignment/code")
-
 #source(code_01_preparation.R)
 
 setwd("/Users/gustavpirich/Library/Mobile Documents/com~apple~CloudDocs/Wirtschaftsuniversitaet/SSE/environmental_economics/lareg_assignment/data")
-data <- read.csv("transformed_data.csv")
+#data <- read.csv("transformed_data.csv")
 
-
+edited_final_yellow <- read.csv("~/Library/Mobile Documents/com~apple~CloudDocs/Wirtschaftsuniversitaet/SSE/environmental_economics/lareg_assignment/data/edited_final_yellow.csv", sep=";")
+edited_final_yellow <- edited_final_yellow %>%
+  select(!X)
 
 # For summarising rdrobust models: https://stackoverflow.com/que --------
 
@@ -51,22 +51,11 @@ glance.rdrobust <- function(model, ...) {
 
 
 #keeping only a subsample of the respondents with estimated_gain > -400
-sub_sample <- data %>%
+sub_sample <- edited_final_yellow %>%
   filter(estimated_gain > -400) 
 
 
 # Use ggplot2 to plot the kernel density estimate
-plot_01 <- ggplot() +
-  geom_density(data=sub_sample, aes(x=estimated_gain, fill="Estimated Gain"), bw=50, alpha=0) +
-  geom_density(data=sub_sample, aes(x=perceived_gain, fill="Perceived Gain"), bw=50, alpha=0) +
-  scale_fill_manual(values=c("Estimated Gain"="darkblue", "Perceived Gain"="orange")) +
-  labs(title="Kernel Density Plot",
-       x="Gain (in €/year per c.u.)",
-       y="Density") +
-  theme_minimal() + 
-  guides(fill=guide_legend(title="Gains")) + 
-  xlim(-550, 325)
-
 plot_01 <- ggplot() +
   geom_density(data=sub_sample, aes(x=estimated_gain, color="Estimated Gain"), bw=50, size=1) +  # Size increased here
   geom_density(data=sub_sample, aes(x=perceived_gain, color="Perceived Gain"), bw=50, size=1) +  # And here
@@ -78,15 +67,26 @@ plot_01 <- ggplot() +
   guides(colour=guide_legend(title="Gains")) + 
   xlim(-550, 325)
 
+#plot_02.png
+cdf <- Ecdf(sub_sample$estimated_gain)
+plot(Ecdf(sub_sample$perceived_gain), type="s", lwd=1.5, col="orange", xlim=c(-400, 150), main="", ylab="", xlab="") 
+lines(cdf$x, cdf$y, lwd=2, col="darkblue")
+title(ylab=expression("Proportion "<=" x"), xlab="Gain (in €/year per c.u.)", line=2.3) + grid()
+legend("topleft", col=c("orange", "darkblue", "darkblue"), cex = 0.5, lty = c(1,1,2), lwd=2, legend = c("Perceived", "Estimated"))
 
-#ggsave("plot_01.png")
+#ggsave("plot_02.png", width = 6, height = 6)
 
 
-# Question 3
+
+
+
+
+# Question 3  -------------------------------------------------------------
+
+
 #First creating a variable called large_bias
-s_1 <- data %>%
-  mutate(large_bias = ifelse((abs(estimated_gain - perceived_gain) > 110 ), 1, 0)) %>%
-  filter(estimated_gain > -400)
+s_1 <- edited_final_yellow %>%
+  mutate(large_bias = ifelse((abs(estimated_gain - perceived_gain) > 110 ), 1, 0)) 
 
 #variables_demo_bias <- variables_demo 
 #variables_demo_bias <- variables_demo_bias[!(variables_demo_bias %in% c("sexe", "age_50_64", "age_65_plus", "taille_agglo"))]
@@ -97,17 +97,20 @@ s_1 <- data %>%
 #formula <- as.formula(paste(large_bias ~ tax_approval + (sexe=='Féminin') + as.factor(taille_agglo) + (Diplome>=5) + revenu + 
 #                              ecologiste + Gauche_droite + uc + Gilets_jaunes + , paste(variables_demo_bias, collapse=' + ')))
 s_1$political_leaning <- as.factor(s_1$political_leaning)
+s_1$education <- as.integer(s_1$education)
 
 # Rename the levels
 levels(s_1$political_leaning) <- c("extreme_left", "left", "center", "right", "extreme_right", "indeterminate")
 
-formula <- as.formula(paste("large_bias ~  tax_approval_nsp + tax_approval_yes + yv_pnr + yv_understands + yv_supports + yv_is_part + environmentalist + respondent_income + household_income + sexe + region + town_size + as.factor(education) + as.factor(political_leaning)")) 
+formula <- as.formula(paste("large_bias ~  (tax_approval_nsp) + (tax_approval_yes) + as.factor(yv_pnr) + as.factor(yv_understands) + as.factor(yv_supports) + as.factor(yv_is_part) + as.factor(statut_emploi) + 
+                            (uc) + as.factor(age_18_24) + as.factor(nb_adultes) + (niveau_vie) + as.factor(age_25_34) + as.factor(age_35_49) + as.factor(categorie_cible) +
+                            as.factor(region) + as.factor(education) + as.factor(environmentalist) + household_income + respondent_income + as.factor(csp) + as.factor(sexe) + as.factor(region) + town_size + as.factor(actualite) + as.factor(household_size) + as.factor(nb_14_et_plus) + as.factor(fume) + as.factor(political_leaning)")) 
 
 mod_1 <- lm(formula, weights = s_1$weight, data = s_1)
 summary(mod_1)
 
-Table_heterogenous_bias <- stargazer(mod_1, out = "latex",
-                                     title="Determinants of bias in subjective gains", model.names = T, model.numbers = FALSE, #star.cutoffs = c(0.1, 1e-5, 1e-30), # "Diploma: Bachelor or above", 
+Table_heterogenous_bias <- stargazer(mod_1, out = "text, 
+                                     title="Determinants of bias in subjective gains, model.names = T, model.numbers = FALSE, #star.cutoffs = c(0.1, 1e-5, 1e-30), # "Diploma: Bachelor or above", 
                                      #covariate.labels = c("Initial tax: Approves",
                                      #                     "Yellow Vests: PNR","Yellow Vests: understands","Yellow Vests: supports", "Yellow Vests: is part",
                                      #                     "Ecologist", "Left-right: Left", "Left-right: Center", "Left-right: Right", "Left-right: Extreme-right", "Left-right: Indeterminate"),
@@ -122,12 +125,12 @@ Table_heterogenous_bias <- stargazer(mod_1, out = "latex",
 
 
 #Rproducing the graph in
-s_1 <- data %>%
+s_1 <- edited_final_yellow %>%
   mutate(win_dummy = ifelse(estimated_gain > 1, 1, 0))
 
-#plot(s_1$estimated_gain, s_1$win_dummy)
+plot(s_1$estimated_gain, s_1$win_dummy)
 
-# Main outcome variable is "believes does not lose"
+#Main outcome variable is "believes does not lose"
 s_1$believes_does_not_lose <- s_1$winner_feedback != "Perdant"
 
 #Plot dropping low-level outliers
@@ -136,7 +139,7 @@ s_2 <- s_1 %>%
   filter(variante_taxe_info == "f")
 
 rdplot(y=s_2$believes_does_not_lose, x=s_2$estimated_gain, c=0, weights=s_2$weight,
-       x.label = expression(paste("simule_gain (", hat(gamma), ")")),
+       x.label = expression(paste("Estimated Gain" (hat(gamma)))),
        y.label = "Probability believes does not lose", p=2)
 
 
@@ -145,7 +148,9 @@ ggsave("../figures_tables/rd_plot_within.png", width = 6, height = 6)
 
 
 
+
 # question C --------------------------------------------------------------
+
 
 s_3 <- s_1 %>% 
   filter(variante_taxe_info == "f")
@@ -169,4 +174,7 @@ sink("../figures_tables/table42_v2.tex")
 modelsummary(list(rdd1,rdd2,rdd3,rdd4), output = "latex_tabular",
              fmt = 3, statistic =c("({std.error})", "[{p.value}]"))
              #add_rows = tab42_v2_rows)
-lm(win_dummy ~ simule_gain, data = s_1)
+
+
+
+
