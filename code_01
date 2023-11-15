@@ -124,7 +124,8 @@ Table_heterogenous_bias <- stargazer(mod_1, out = "text,
                                      no.space=TRUE, intercept.bottom=FALSE, intercept.top=TRUE, omit.stat=c("adj.rsq", "f", "ser", "ll", "aic"), label="tab:bias")
 
 
-#Rproducing the graph in
+#Question 4.b
+
 s_1 <- edited_final_yellow %>%
   mutate(win_dummy = ifelse(estimated_gain > 1, 1, 0))
 
@@ -170,12 +171,13 @@ rdplot(x= s_2$estimated_gain,
 
 
 
-ggsave("../figures_tables/rd_plot_within.png", width = 6, height = 6)
+#ggsave("../figures_tables/rd_plot_within.png", width = 6, height = 6)
 
 
 
 
-# question C --------------------------------------------------------------
+
+# question 4.c --------------------------------------------------------------
 
 
 s_3 <- s_1 %>% 
@@ -201,6 +203,12 @@ modelsummary(list(rdd1,rdd2,rdd3,rdd4), output = "latex_tabular",
              fmt = 3, statistic =c("({std.error})", "[{p.value}]"))
              #add_rows = tab42_v2_rows)
 
+
+
+
+
+
+          
 
 
 
