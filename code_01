@@ -9,8 +9,10 @@ library(modelsummary)
 
 
 # reading in data ---------------------------------------------------------
+#source(code_01_preparation.R)
 
 setwd("/Users/gustavpirich/Library/Mobile Documents/com~apple~CloudDocs/Wirtschaftsuniversitaet/SSE/environmental_economics/lareg_assignment/data")
+#data <- read.csv("transformed_data.csv")
 
 edited_final_yellow <- read.csv("~/Library/Mobile Documents/com~apple~CloudDocs/Wirtschaftsuniversitaet/SSE/environmental_economics/lareg_assignment/data/edited_final_yellow.csv", sep=";")
 edited_final_yellow <- edited_final_yellow %>%
@@ -131,14 +133,40 @@ plot(s_1$estimated_gain, s_1$win_dummy)
 #Main outcome variable is "believes does not lose"
 s_1$believes_does_not_lose <- s_1$winner_feedback != "Perdant"
 
+
+#density plot
+add_x_break <- function(plot, xval) {
+  
+  p2 <- ggplot_build(plot)
+  breaks <- p2$layout$panel_params[[1]]$x$breaks
+  breaks <- breaks[!is.na(breaks)]
+  
+  plot +
+    geom_vline(xintercept = xval, color = "red", linetype = "dashed") +
+    scale_x_continuous(breaks = sort(c(xval, breaks)))
+}
+
+P <- ggplot() +
+  geom_density(aes(x = s_1$estimated_gain)) +
+  ggtitle("Density of the Running Variable") +
+  xlab("Your Custom X-axis Label") +
+  xlab("Estimated Gain")
+
+add_x_break(P, -300) 
+
+
 #Plot dropping low-level outliers
 s_2 <- s_1 %>% 
   filter(estimated_gain > -300) %>%
   filter(variante_taxe_info == "f")
 
-rdplot(y=s_2$believes_does_not_lose, x=s_2$estimated_gain, c=0, weights=s_2$weight,
+rdplot(x= s_2$estimated_gain, 
+       y= s_2$believes_does_not_lose, 
+       c=0, 
+       weights = s_2$weight,
        x.label = expression(paste("Estimated Gain" (hat(gamma)))),
-       y.label = "Probability believes does not lose", p=2)
+       y.label = "Probability believes does not lose", 
+       p=2)
 
 
 
@@ -175,4 +203,8 @@ modelsummary(list(rdd1,rdd2,rdd3,rdd4), output = "latex_tabular",
 
 
 
+
+
+
+          
 
