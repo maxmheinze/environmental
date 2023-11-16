@@ -67,14 +67,33 @@ plot_01 <- ggplot() +
   guides(colour=guide_legend(title="Gains")) + 
   xlim(-550, 325)
 
-#plot_02.png
-cdf <- Ecdf(sub_sample$estimated_gain)
-plot(Ecdf(sub_sample$perceived_gain), type="s", lwd=1.5, col="orange", xlim=c(-400, 150), main="", ylab="", xlab="") 
-lines(cdf$x, cdf$y, lwd=2, col="darkblue")
-title(ylab=expression("Proportion "<=" x"), xlab="Gain (in €/year per c.u.)", line=2.3) + grid()
-legend("topleft", col=c("orange", "darkblue", "darkblue"), cex = 0.5, lty = c(1,1,2), lwd=2, legend = c("Perceived", "Estimated"))
 
-#ggsave("plot_02.png", width = 6, height = 6)
+par(mar = c(4, 4, 4, 2))
+
+y_breaks <- seq(-500, 300, by = 100)
+y_labels <- as.character(y_breaks)
+
+density_estimated_gain <- density(sub_sample$estimated_gain, bw = 50)
+density_perceived_gain <- density(sub_sample$perceived_gain, bw = 50)
+
+plot(density_estimated_gain, col = "darkblue", lwd = 2, xlim = c(-550, 325), 
+     main = "Kernel Density Plot",
+     xlab = "Gain (in €/year per c.u.)", 
+     ylab = "Density", cex.axis = 0.5)  # Decreased axis label size
+lines(density_perceived_gain, col = "orange", lwd = 2)
+
+# Calculate means
+mean_estimated_gain <- mean(sub_sample$estimated_gain)
+mean_perceived_gain <- mean(sub_sample$perceived_gain)
+
+# Add dashed lines at the means
+abline(v = mean_estimated_gain, col = "red", lwd = 2, lty = 2)
+abline(v = mean_perceived_gain, col = "red", lwd = 2, lty = 2)
+
+legend("topleft", legend = c("Estimated Gain", "Perceived Gain"), 
+       col = c("darkblue", "orange"), lty = 1, lwd = 3, cex = 0.3)  # Increased legend text size
+
+axis(side = 1, at = y_breaks, labels = y_labels, las = 1, cex.axis = 0.5)  # Decreased axis label size
 
 
 
@@ -183,31 +202,29 @@ rdplot(x= s_2$estimated_gain,
 s_3 <- s_1 %>% 
   filter(variante_taxe_info == "f")
 
-# Now implement as a RDD
 rdd1 <- rdrobust(y=s_3$believes_does_not_lose, x=s_3$estimated_gain, c=0, weights = s_3$weight)
-# c4 <- RD with manual bandwidth and uniform kernel
+
 rdd2 <- rdrobust(y=s_3$believes_does_not_lose, x=s_3$estimated_gain, c=0, weights = s_3$weight, h=50, kernel = "uniform")
-# uniform kernel 
+
 rdd3 <- rdrobust(y=s_3$believes_does_not_lose, x=s_3$estimated_gain, c=0, weights = s_3$weight, kernel="uniform")
-# local quadratic
+
 rdd4 <- rdrobust(y=s_3$believes_does_not_lose, x=s_3$estimated_gain, c=0, weights = s_3$weight, p = 2)
 
-
-tab42_v2_rows <- tibble::tribble(~term,                ~rdd1,    ~rdd2,    ~rdd3,    ~rdd4)
-                                 #"Covariates",         "",       "",       "",       "",
-                                 #"Drop misclassified", "",       "",       "",       ""
-attr(tab42_v2_rows, 'position') <- 13:14
-sink("../figures_tables/table42_v2.tex")
-
-modelsummary(list(rdd1,rdd2,rdd3,rdd4), output = "latex_tabular",
-             fmt = 3, statistic =c("({std.error})", "[{p.value}]"))
-             #add_rows = tab42_v2_rows)
+modelsummary(list(rdd1,rdd2,rdd3,rdd4), 
+             output = "latex_tabular",
+             fmt = 3, 
+             statistic = c("({std.error})", "[{p.value}]")) 
 
 
 
 
 
 
+          
+
+
+
+          
           
 
 
