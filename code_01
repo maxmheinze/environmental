@@ -68,7 +68,7 @@ plot_01 <- ggplot() +
   xlim(-550, 325)
 
 
-par(mar = c(4, 4, 4, 2))
+par(mar = c(4, 4, 4, 1))
 
 y_breaks <- seq(-500, 300, by = 100)
 y_labels <- as.character(y_breaks)
@@ -78,7 +78,7 @@ density_perceived_gain <- density(sub_sample$perceived_gain, bw = 50)
 
 plot(density_estimated_gain, col = "darkblue", lwd = 2, xlim = c(-550, 325), 
      main = "Kernel Density Plot",
-     xlab = "Gain (in €/year per c.u.)", 
+     xlab = "Gain (in EUR/year per c.u.)", 
      ylab = "Density", cex.axis = 0.5)  # Decreased axis label size
 lines(density_perceived_gain, col = "orange", lwd = 2)
 
@@ -95,6 +95,7 @@ legend("topleft", legend = c("Estimated Gain", "Perceived Gain"),
 
 axis(side = 1, at = y_breaks, labels = y_labels, las = 1, cex.axis = 0.5)  # Decreased axis label size
 
+ggsave("kernel_density.png", width = 6, height = 7)
 
 
 
@@ -107,40 +108,67 @@ axis(side = 1, at = y_breaks, labels = y_labels, las = 1, cex.axis = 0.5)  # Dec
 s_1 <- edited_final_yellow %>%
   mutate(large_bias = ifelse((abs(estimated_gain - perceived_gain) > 110 ), 1, 0)) 
 
-#variables_demo_bias <- variables_demo 
-#variables_demo_bias <- variables_demo_bias[!(variables_demo_bias %in% c("sexe", "age_50_64", "age_65_plus", "taille_agglo"))]
 
-#formula <- as.formula(paste("large_bias ~ tax_approval + (sexe=='Féminin') + as.factor(taille_agglo) + (Diplome>=5) + revenu + 
-                                     #ecologiste + Gauche_droite + uc + Gilets_jaunes + ", paste(variables_demo_bias, collapse=' + ')))
+#downloading original data set to add the variable yellow vest, age, and the full variable with all six cateogries for education 
+s_original <- read.csv("/Users/gustavpirich/Library/Mobile Documents/com~apple~CloudDocs/Wirtschaftsuniversitaet/SSE/environmental_economics/lareg_assignment/replication/s_original.csv")
 
-#formula <- as.formula(paste(large_bias ~ tax_approval + (sexe=='Féminin') + as.factor(taille_agglo) + (Diplome>=5) + revenu + 
-#                              ecologiste + Gauche_droite + uc + Gilets_jaunes + , paste(variables_demo_bias, collapse=' + ')))
+s_original <- s_original %>% 
+  mutate(taxe_approbation_1 = ifelse(is.na(s_original$taxe_approbation),"NSP",taxe_approbation))
+
 s_1$political_leaning <- as.factor(s_1$political_leaning)
-s_1$education <- as.integer(s_1$education)
+s_1$political_leaning <- relevel(s_1$political_leaning, ref = c("Extreme-left"))
 
-# Rename the levels
-levels(s_1$political_leaning) <- c("extreme_left", "left", "center", "right", "extreme_right", "indeterminate")
+s_original$Yellow_Vest <- as.factor(s_original$Gilets_jaunes)
+s_original$Yellow_Vest <- relevel(s_original$Yellow_Vest, ref = "oppose")
 
-formula <- as.formula(paste("large_bias ~  (tax_approval_nsp) + (tax_approval_yes) + as.factor(yv_pnr) + as.factor(yv_understands) + as.factor(yv_supports) + as.factor(yv_is_part) + as.factor(statut_emploi) + 
-                            (uc) + as.factor(age_18_24) + as.factor(nb_adultes) + (niveau_vie) + as.factor(age_25_34) + as.factor(age_35_49) + as.factor(categorie_cible) +
-                            as.factor(region) + as.factor(education) + as.factor(environmentalist) + household_income + respondent_income + as.factor(csp) + as.factor(sexe) + as.factor(region) + town_size + as.factor(actualite) + as.factor(household_size) + as.factor(nb_14_et_plus) + as.factor(fume) + as.factor(political_leaning)")) 
+#adding variables which were NOT in the data set based of from original data
+s_1$age <- s_original$age
+s_1$highereducation <- (s_original$Diplome>=5)
+s_1$Yellow_Vest <- s_original$Yellow_Vest
 
-mod_1 <- lm(formula, weights = s_1$weight, data = s_1)
-summary(mod_1)
+variables <- c("age","statut_emploi","csp","education","household_size","respondent_income",
+               "household_income","nb_14_et_plus", "nb_adultes","fume","actualite",
+               "uc","niveau_vie","age_18_24","age_25_34", "age_35_49")
 
-Table_heterogenous_bias <- stargazer(mod_1, out = "text, 
-                                     title="Determinants of bias in subjective gains, model.names = T, model.numbers = FALSE, #star.cutoffs = c(0.1, 1e-5, 1e-30), # "Diploma: Bachelor or above", 
-                                     #covariate.labels = c("Initial tax: Approves",
-                                     #                     "Yellow Vests: PNR","Yellow Vests: understands","Yellow Vests: supports", "Yellow Vests: is part",
-                                     #                     "Ecologist", "Left-right: Left", "Left-right: Center", "Left-right: Right", "Left-right: Extreme-right", "Left-right: Indeterminate"),
-                                     dep.var.labels = c("Large bias ($\\left|\\widehat{\\gamma}-g\\right| > 110$)"), dep.var.caption = "", header = FALSE,
-                                     keep = c("tax_approval_nsp", "tax_approval_yes", "yv_pnr", "yv_understands", "yv_supports", "yv_is_part", "yv_is_part", "environmentalist", "political_leaning"),
-                                     #order = c("tax_approval", "Gilets_jaunes", "ecologiste", "Gauche_droite"),
-                                     omit.table.layout = 'n', star.cutoffs = NA,
-                                     #coef = list(NULL, logit_bias_margins[,1], NULL),
-                                     #se = list(NULL, logit_bias_margins[,2], NULL),
-                                     add.lines = list(c("Controls: Socio-demo, political leaning", "\\checkmark", "\\checkmark", "\\checkmark")),
-                                     no.space=TRUE, intercept.bottom=FALSE, intercept.top=TRUE, omit.stat=c("adj.rsq", "f", "ser", "ll", "aic"), label="tab:bias")
+formula_final <- paste("large_bias ~ tax_approval + (sexe=='Féminin') + as.factor(town_size) + highereducation + region + 
+                                     environmentalist + political_leaning + (uc) + Yellow_Vest + age + statut_emploi + csp + education +
+                                     household_size + respondent_income + household_income + nb_14_et_plus + nb_adultes + fume + actualite +
+                                     uc + niveau_vie + age_18_24 + age_25_34 + age_35_49")
+
+mod_2 <- lm(formula_final, data = s_1, weight = s_1$weight)
+summary(mod_2)
+
+Table_heterogenous_bias <- stargazer(mod_2, 
+                                     out = "text", 
+                                     title = "Determinants of bias in subjective gains",
+                                     label = "table2",
+                                     dep.var.labels = c("Large bias"), dep.var.caption = "", header = FALSE,
+                                     keep = c("tax_approvalNSP", "tax_approvalOui", "Yellow_Vest", "environmentalist", "political_leaningCenter", "political_leaningExtreme-right", "political_leaningIndeterminate", "political_leaningLeft", "political_leaningRight"),
+                                     order = c("tax_approvalNSP", "tax_approvalOui",
+                                               "Yellow_VestNSP",
+                                               "Yellow_Vestcomprend", 
+                                               "Yellow_Vestsoutient",
+                                               "Yellow_Vestest_dedans", 
+                                               "environmentalist", 
+                                               "political_leaningLeft", 
+                                               "political_leaningCenter",
+                                               "political_leaningRight", 
+                                               "political_leaningExtreme-right", 
+                                               "political_leaningIndeterminate"),
+                                     covariate.labels = c("Initial tax: PNR (I don't know)", 
+                                                          "Initial tax: Approves",
+                                                          "Yellow Vests: PNR",
+                                                          "Yellow Vests: understands","Yellow Vests: supports", 
+                                                          "Yellow Vests: is part",
+                                                          "Ecologist", 
+                                                          "Left-right: Left", 
+                                                          "Left-right: Center", 
+                                                          "Left-right: Right", 
+                                                          "Left-right: Extreme-right", 
+                                                          "Left-right: Indeterminate"),
+                                     omit.table.layout = 'n',
+                                     add.lines = list(c("Controls: Socio-demo, Political Leaning", "\\checkmark", "\\checkmark", "\\checkmark")),
+                                     omit.stat=c("adj.rsq", "f", "ser", "ll", "aic"))
 
 
 #Question 4.b
@@ -215,17 +243,6 @@ modelsummary(list(rdd1,rdd2,rdd3,rdd4),
              fmt = 3, 
              statistic = c("({std.error})", "[{p.value}]")) 
 
-
-
-
-
-
-          
-
-
-
-          
-          
 
 
 
